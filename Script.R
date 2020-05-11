@@ -4,21 +4,11 @@ cat("\014")
 
 library(dplyr)
 
-library(tidyverse)
+library(scales)
 
 library(gganimate)
 
-# remove.packages("ggplot")
-
-# install.packages("ggplot")
-
-library(ggplot)
-
-# install.packages("colorspace")
-
 library(colorspace)
-
-# install.packages("ggplot2")
 
 library(ggplot2)
 
@@ -31,14 +21,14 @@ df <- read.csv("C:/Users/aishwarya.sharma/OneDrive - insidemedia.net/Dell Lattit
 df$date <-  format(as.Date(df$date,, format = "%Y-%m-%d"),"%Y")
 
 home.result <- df %>%
-  group_by(df$home_team,date)%>%
+  group_by(home_team,date)%>%
   summarise(Matches_Played = n())
 
 away.result <- df %>%    
-  group_by(df$away_team,date)%>%
+  group_by(away_team,date)%>%
   summarise(Matches_Played = n())
 
-total <- left_join(home.result,away.result,by = c("df$home_team" = "df$away_team","date"="date"))
+total <- left_join(home.result,away.result,by = c("home_team" = "away_team","date"="date"))
 
 total[is.na(total)] <- 0
 
@@ -46,13 +36,18 @@ total$total_matches = total$Matches_Played.x + total$Matches_Played.y
 
 total <- total[,-c(3:4)]
 
+total <- total %>%
+  arrange(date)
+
 colnames(total) <- c("Team","Year","Total_Played")
+
+
 
 temp <- total %>%
   group_by(Year) %>%
   mutate(rank = rank(-Total_Played, ties.method = "random"),
          Total_Played_rel = Total_Played/Total_Played[rank==1],
-         Total_Played_lbl = paste0(" ",round(Total_Played/1e9))) %>%
+         Total_Played_lbl = paste0(" ",round(Total_Played))) %>%
   group_by(Team) %>% 
   filter(rank <=10) %>%
   ungroup()
@@ -87,11 +82,14 @@ staticplot = ggplot(temp, aes(rank, group = Team,
         plot.background=element_blank(),
         plot.margin = margin(2,2, 2, 4, "cm"))
 
-anim = staticplot + transition_states(date, transition_length = 4, state_length = 1) +
+anim = staticplot + transition_states(Year, transition_length = 4, state_length = 1) +
   view_follow(fixed_x = TRUE)  +
-  labs(title = 'Most Football Matches Played Through the Years',  
+  labs(title = 'Football Matches Through the Years : {closest_state}',  
        subtitle  =  "Top 10 Countries",
-       caption  = "PKMKB")
+       caption  = "Top 10 Countries with Most Played Football Matches")
 
-animate(anim, 200, fps = 20,  width = 1200, height = 1000, 
+
+
+animate(anim, 1000, fps = 10,  width = 1200, height = 1000, 
         renderer = gifski_renderer("gganim.gif"))
+
