@@ -23,25 +23,20 @@ df$date <-  format(as.Date(df$date,, format = "%Y-%m-%d"),"%Y")
 home.result <- df %>%
   group_by(home_team,date)%>%
   summarise(Matches_Played = n())
+colnames(home.result)[1] <- "Team"
 
 away.result <- df %>%    
   group_by(away_team,date)%>%
   summarise(Matches_Played = n())
+colnames(away.result)[1] <- "Team"
 
-total <- left_join(home.result,away.result,by = c("home_team" = "away_team","date"="date"))
-
-total[is.na(total)] <- 0
-
-total$total_matches = total$Matches_Played.x + total$Matches_Played.y
-
-total <- total[,-c(3:4)]
+total <- rbind.data.frame(home.result,away.result)
 
 total <- total %>%
-  arrange(date)
+  group_by(Team,date)%>%
+  summarise(Total_Matches = sum(Matches_Played))
 
 colnames(total) <- c("Team","Year","Total_Played")
-
-
 
 temp <- total %>%
   group_by(Year) %>%
