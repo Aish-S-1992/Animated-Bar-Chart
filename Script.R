@@ -38,22 +38,26 @@ total <- total %>%
 
 colnames(total) <- c("Team","Year","Total_Played")
 
+total <- total %>%
+  group_by(Team)%>%
+  mutate(Cum_Matches =cumsum(Total_Played))
+
 temp <- total %>%
   group_by(Year) %>%
-  mutate(rank = rank(-Total_Played, ties.method = "random"),
-         Total_Played_rel = Total_Played/Total_Played[rank==1],
-         Total_Played_lbl = paste0(" ",round(Total_Played))) %>%
+  mutate(rank = rank(-Cum_Matches, ties.method = "random"),
+         Total_Matches_rel = Cum_Matches/Cum_Matches[rank==1],
+         Total_Played_lbl = paste0(" ",round(Cum_Matches))) %>%
   group_by(Team) %>% 
   filter(rank <=10) %>%
   ungroup()
 
 staticplot = ggplot(temp, aes(rank, group = Team, 
                               fill = as.factor(Team), color = as.factor(Team))) +
-  geom_tile(aes(y = Total_Played/2,
-                height = Total_Played,
+  geom_tile(aes(y = Cum_Matches/2,
+                height = Cum_Matches,
                 width = 0.9), alpha = 0.8, color = NA) +
   geom_text(aes(y = 0, label = paste(Team, " ")), vjust = 0.2, hjust = 1) +
-  geom_text(aes(y= Total_Played,label = Total_Played_lbl, hjust=0)) +
+  geom_text(aes(y= Cum_Matches,label = Total_Played_lbl, hjust=0)) +
   coord_flip(clip = "off", expand = FALSE) +
   scale_y_continuous(labels = scales::comma) +
   scale_x_reverse() +
