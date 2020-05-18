@@ -1,0 +1,144 @@
+---
+title: "Creating Animated Bar Charts"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### But what are video bar charts in the first place ? 
+
+Animated bar charts race which helps one visualize the change in trends over time, these type of charts are very popular on social media as they provide a holistic data story/insight in a concise and easy to understand chart.
+
+A lot of visualization tools like Tableau & Power BI enable you to do so but you can make them quite easily in R as well.   
+
+![Whaaat?](https://media.giphy.com/media/cLLkqzdxu9Rgk/giphy.gif)
+
+This document does it using the International Football Match dataset, ranking the top ten countries in terms of international matches played till 2020.  
+
+```{r Library, include=FALSE}
+
+#Loading the libraries 
+
+library(dplyr)
+
+library(scales)
+
+library(gganimate)
+
+library(colorspace)
+
+library(ggplot2)
+
+library(gganimate)
+
+library(gifski)
+
+```
+
+### Data pre-processing
+
+The data needs to be pre-processed in a certain format before we move to the visualization bit
+
+```{r Data Prep, echo=TRUE}
+df <- read.csv("C:/Users/aishwarya.sharma/OneDrive - insidemedia.net/Dell Lattitude - 5300/Aishwarya/Kaggle/International FIFA Results/results.csv",stringsAsFactors = F)
+
+df$date <-  format(as.Date(df$date,, format = "%Y-%m-%d"),"%Y")
+
+home.result <- df %>%
+  group_by(home_team,date)%>%
+  summarise(Matches_Played = n())
+colnames(home.result)[1] <- "Team"
+
+away.result <- df %>%    
+  group_by(away_team,date)%>%
+  summarise(Matches_Played = n())
+colnames(away.result)[1] <- "Team"
+
+total <- rbind.data.frame(home.result,away.result)
+
+total <- total %>%
+  group_by(Team,date)%>%
+  summarise(Total_Matches = sum(Matches_Played))
+
+colnames(total) <- c("Team","Year","Total_Played")
+
+total <- total %>%
+  group_by(Team)%>%
+  mutate(Cum_Matches =cumsum(Total_Played))
+
+temp <- total %>%
+  group_by(Year) %>%
+  mutate(rank = rank(-Cum_Matches, ties.method = "random"),
+         Total_Matches_rel = Cum_Matches/Cum_Matches[rank==1],
+         Total_Played_lbl = paste0(" ",round(Cum_Matches))) %>%
+  group_by(Team) %>% 
+  filter(rank <=10) %>%
+  ungroup()
+
+head(temp)
+
+```
+
+
+### Building a Static Plot
+
+Now we'll build individual plots for each year. There are a few key aspects with the theme() function that will be altered to make it go well with the animation, like – Only Vertical Grid Lines are drawn and Legends, Axes Title and few more components would be removed from the plot.
+
+
+```{r}
+staticplot = ggplot(temp, aes(rank, group = Team, 
+                              fill = as.factor(Team), color = as.factor(Team))) +
+  geom_tile(aes(y = Cum_Matches/2,
+                height = Cum_Matches,
+                width = 0.9), alpha = 0.8, color = NA) +
+  geom_text(aes(y = 0, label = paste(Team, " ")), vjust = 0.2, hjust = 1) +
+  geom_text(aes(y= Cum_Matches,label = Total_Played_lbl, hjust=0)) +
+  coord_flip(clip = "off", expand = FALSE) +
+  scale_y_continuous(labels = scales::comma) +
+  scale_x_reverse() +
+  guides(color = FALSE, fill = FALSE) +
+  theme(axis.line=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        legend.position="none",
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        panel.grid.major.x = element_line( size=.1, color="grey" ),
+        panel.grid.minor.x = element_line( size=.1, color="grey" ),
+        plot.title=element_text(size=25, hjust=0.5, face="bold", colour="grey", vjust=-1),
+        plot.subtitle=element_text(size=18, hjust=0.5, face="italic", color="grey"),
+        plot.caption =element_text(size=8, hjust=0.5, face="italic", color="grey"),
+        plot.background=element_blank(),
+        plot.margin = margin(2,2, 2, 4, "cm"))
+
+```
+
+
+### Animation
+
+The key function here is transition_states() which stitches the individual static plots together by year. view_follow() is used to give a view as if the background lines (gridlines) are moving as the animation is progressing
+
+```{r Animation, echo=TRUE}
+anim = staticplot + transition_states(Year, transition_length = 4, state_length = 1) +
+  view_follow(fixed_x = TRUE)  +
+  labs(title = 'Football Matches Through the Years : {closest_state}',  
+       subtitle  =  "Top 10 Countries",
+       caption  = "Top 10 Countries with Most Played Football Matches")
+
+
+# The FPS has to be adjusted as per the data
+animate(anim, 1000, fps = 10,  width = 1200, height = 1000, 
+        renderer = gifski_renderer("gganim.gif"))
+```
+![Here you go](https://media.giphy.com/media/cLqTqyigA8b5gl23Dw/giphy.gif)
+
+### Reference & Credit
+
+This code has been inspired by the article written by Abdul Majed Raja over https://towardsdatascience.com/create-animated-bar-charts-using-r-31d09e5841da 
